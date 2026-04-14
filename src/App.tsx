@@ -264,8 +264,6 @@ export default function App() {
   const [combo, setCombo] = useState(0);
   const comboTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  if (!username) return <IntroScreen onEnter={(n) => setUsername(n)} />;
-
   const filtered = useMemo(() => DATASET.filter((d) => visibleCats.has(d.category)), [visibleCats]);
   const byCategory = useMemo(() => {
     const m: Record<string, any[]> = {};
@@ -317,6 +315,8 @@ export default function App() {
       </ScatterChart>
     </ResponsiveContainer>
   ), [visibleCats, byCategory]);
+
+  if (!username) return <IntroScreen onEnter={(n) => setUsername(n)} />;
 
   return (
     <div style={{ background: "#05050f", minHeight: "100vh", color: "#e8e8f0", fontFamily: "'Inter','Segoe UI',sans-serif", display: "flex", flexDirection: "column" }}>
