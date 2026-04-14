@@ -108,26 +108,151 @@ const TABS = [
   "Raw Table",
 ];
 
+// ─── Intro Screen ─────────────────────────────────────────────────────────────
+function IntroScreen({ onEnter }) {
+  const [name, setName] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleEnter = () => {
+    if (!name.trim()) return;
+    setSubmitted(true);
+    setTimeout(() => onEnter(name.trim()), 600);
+  };
+
+  return (
+    <div style={{
+      background: "#0a0a0a",
+      minHeight: "100vh",
+      color: "#fff",
+      fontFamily: "'Segoe UI', sans-serif",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+    }}>
+      <div style={{
+        maxWidth: 560,
+        width: "100%",
+        opacity: submitted ? 0 : 1,
+        transition: "opacity 0.5s ease",
+      }}>
+        {/* Header */}
+        <div style={{ marginBottom: 36, textAlign: "center" }}>
+          <div style={{ fontSize: 10, letterSpacing: 4, color: "#444", textTransform: "uppercase", marginBottom: 12 }}>
+            Enoch Immanuel Wang
+          </div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 10px", lineHeight: 1.2 }}>
+            1,000 Video Simulation
+          </h1>
+          <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.7 }}>
+            A probability simulation built from real Instagram Reel distributions —
+            exploring what separates a flop from a viral video.
+          </p>
+        </div>
+
+        {/* Quick Guide */}
+        <div style={{ background: "#111", borderRadius: 12, padding: "20px 22px", marginBottom: 28, border: "1px solid #1e1e1e" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>
+            Quick Guide
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              { icon: "🎛️", title: "Filter categories", desc: "Toggle FLOP, MIDDLE, VIRAL, MEGA VIRAL buttons to show/hide data points" },
+              { icon: "📊", title: "Explore scatter plots", desc: "Switch between 3 chart views — hover over any dot to see that video's full stats" },
+              { icon: "📋", title: "Summary Stats", desc: "See averages per category and key observations about what makes a video go viral" },
+              { icon: "📁", title: "Raw Table", desc: "Browse all 1,000 simulated videos and filter by visible categories" },
+              { icon: "⬇️", title: "Export", desc: "Download the full dataset as CSV or Excel for your own analysis" },
+            ].map((step) => (
+              <div key={step.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 16, minWidth: 24, marginTop: 1 }}>{step.icon}</span>
+                <div>
+                  <span style={{ color: "#ccc", fontWeight: 600, fontSize: 13 }}>{step.title} </span>
+                  <span style={{ color: "#555", fontSize: 13 }}>— {step.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Name Input */}
+        <div style={{ background: "#111", borderRadius: 12, padding: "20px 22px", border: "1px solid #1e1e1e" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
+            Create your account to continue
+          </div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
+            Enter your name to log your session and access the simulation.
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input
+              type="text"
+              placeholder="Your full name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleEnter()}
+              style={{
+                flex: 1,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #2a2a2a",
+                background: "#0d0d0d",
+                color: "#fff",
+                fontSize: 13,
+                fontFamily: "inherit",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={handleEnter}
+              disabled={!name.trim()}
+              style={{
+                padding: "10px 22px",
+                borderRadius: 8,
+                border: "none",
+                cursor: name.trim() ? "pointer" : "not-allowed",
+                background: name.trim() ? "#7c4dff" : "#1a1a1a",
+                color: name.trim() ? "#fff" : "#444",
+                fontWeight: 700,
+                fontSize: 13,
+                fontFamily: "inherit",
+                transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Enter →
+            </button>
+          </div>
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: "#2a2a2a" }}>
+          Built with React · Recharts · Simulated data only
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const [username, setUsername] = useState(null);
   const [tab, setTab] = useState("Scatter: Skip vs Views");
   const [visibleCats, setVisibleCats] = useState(new Set(CATS));
 
-  const filtered = useMemo(() => DATASET.filter((d) => visibleCats.has(d.category)), [visibleCats]);
-  const byCategory = useMemo(() => {
-    const m = {};
-    CATS.forEach((c) => (m[c] = filtered.filter((d) => d.category === c)));
-    return m;
-  }, [filtered]);
+  if (!username) {
+    return <IntroScreen onEnter={(name) => setUsername(name)} />;
+  }
+
+  const filtered = DATASET.filter((d) => visibleCats.has(d.category));
+  const byCategory = {};
+  CATS.forEach((c) => (byCategory[c] = filtered.filter((d) => d.category === c)));
 
   const toggleCat = (c) =>
     setVisibleCats((prev) => { const s = new Set(prev); s.has(c) ? s.delete(c) : s.add(c); return s; });
 
-  const stats = useMemo(() =>
-    CATS.map((cat) => {
-      const d = DATASET.filter((v) => v.category === cat);
-      const avg = (key) => d.reduce((s, v) => s + v[key], 0) / d.length;
-      return { cat, n: d.length, avgSkip: avg("skip").toFixed(1), avgSaves: avg("saves").toFixed(4), avgViews: Math.round(avg("views")) };
-    }), []);
+  const stats = CATS.map((cat) => {
+    const d = DATASET.filter((v) => v.category === cat);
+    const avg = (key) => d.reduce((s, v) => s + v[key], 0) / d.length;
+    return { cat, n: d.length, avgSkip: avg("skip").toFixed(1), avgSaves: avg("saves").toFixed(4), avgViews: Math.round(avg("views")) };
+  });
 
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload?.length) return null;
@@ -162,13 +287,23 @@ export default function App() {
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#fff", fontFamily: "'Segoe UI', sans-serif", padding: 20 }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 9, letterSpacing: 3, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>
-          Enoch Immanuel Wang · Playing with Probability
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 9, letterSpacing: 3, color: "#555", textTransform: "uppercase", marginBottom: 4 }}>
+            Enoch Immanuel Wang · Playing with Probability
+          </div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>1,000 Video Simulation Dataset</h1>
+          <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+            Simulated from real Instagram Reel distributions · Skip rate (24h) · Saves/view (24h) · Total views (10d)
+          </div>
         </div>
-        <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>1,000 Video Simulation Dataset</h1>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
-          Simulated from real Instagram Reel distributions · Skip rate (24h) · Saves/view (24h) · Total views (10d)
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 12, color: "#444" }}>
+            👋 <span style={{ color: "#888" }}>{username}</span>
+          </div>
+          <button onClick={() => setUsername(null)} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #222", background: "transparent", color: "#444", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+            Sign out
+          </button>
         </div>
       </div>
 
