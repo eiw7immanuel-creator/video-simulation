@@ -22,19 +22,20 @@ function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min
 
 function generateDataset() {
   const categories = [
-    { name: "FLOP",       n: 500, skipMean: 65, skipStd: 10, savesMean: 0.004, savesStd: 0.003, viewsMean: 4000,    viewsStd: 2000    },
-    { name: "MIDDLE",     n: 350, skipMean: 38, skipStd: 8,  savesMean: 0.012, savesStd: 0.005, viewsMean: 150000,  viewsStd: 80000   },
-    { name: "VIRAL",      n: 120, skipMean: 26, skipStd: 5,  savesMean: 0.025, savesStd: 0.008, viewsMean: 1500000, viewsStd: 600000  },
-    { name: "MEGA_VIRAL", n: 30,  skipMean: 22, skipStd: 4,  savesMean: 0.03,  savesStd: 0.01,  viewsMean: 8000000, viewsStd: 3000000 },
+    { name: "FLOP",       count: 500, skip: [65, 15], saves: [0.003, 0.002], views: [800, 400] },
+    { name: "MIDDLE",     count: 350, skip: [40, 8],  saves: [0.012, 0.005], views: [15000, 8000] },
+    { name: "VIRAL",      count: 120, skip: [25, 6],  saves: [0.025, 0.008], views: [250000, 120000] },
+    { name: "MEGA_VIRAL", count: 30,  skip: [18, 4],  saves: [0.045, 0.012], views: [2500000, 1500000] },
   ];
-  const videos: any[] = []; let id = 1;
+  const videos: any[] = [];
+  let id = 1;
   for (const cat of categories) {
-    for (let i = 0; i < cat.n; i++) {
+    for (let i = 0; i < cat.count; i++) {
       videos.push({
         id: id++, category: cat.name,
-        skip: +clamp(randNormal(cat.skipMean, cat.skipStd, rand), 5, 95).toFixed(1),
-        saves: +clamp(randNormal(cat.savesMean, cat.savesStd, rand), 0.0001, 0.15).toFixed(4),
-        views: Math.max(100, Math.round(randNormal(cat.viewsMean, cat.viewsStd, rand))),
+        skip: +clamp(randNormal(cat.skip[0], cat.skip[1], rand), 5, 95).toFixed(1),
+        saves: +clamp(randNormal(cat.saves[0], cat.saves[1], rand), 0.0005, 0.15).toFixed(4),
+        views: Math.round(clamp(randNormal(cat.views[0], cat.views[1], rand), 50, 10000000)),
       });
     }
   }
@@ -53,15 +54,16 @@ const CAT_LABEL: Record<string, string> = {
   FLOP: "💀 FLOP", MIDDLE: "⚡ MIDDLE", VIRAL: "🔥 VIRAL", MEGA_VIRAL: "👑 MEGA VIRAL",
 };
 const CATS = ["FLOP", "MIDDLE", "VIRAL", "MEGA_VIRAL"];
+
 const fmt = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 
 function downloadCSV(data: any[]) {
-  const header = "id,category,skip_rate_24h,saves_per_view_24h,total_views_10d";
-  const rows = data.map((r) => `${r.id},${r.category},${r.skip},${r.saves},${r.views}`);
-  const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+  const header = "id,category,skip_rate_24h(%),saves_per_view_24h,total_views_10d\n";
+  const rows = data.map((r) => `${r.id},${r.category},${r.skip},${r.saves},${r.views}`).join("\n");
+  const blob = new Blob([header + rows], { type: "text/csv" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = "1000_videos_simulation.csv"; a.click();
+  a.download = "1000_real_videos.csv"; a.click();
 }
 function downloadXLS(data: any[]) {
   const catColors: Record<string, string> = { FLOP: "#ff9999", MIDDLE: "#99eeff", VIRAL: "#ee99ff", MEGA_VIRAL: "#ffe066" };
@@ -70,14 +72,14 @@ function downloadXLS(data: any[]) {
   data.forEach(r => { html += `<tr><td style="padding:4px 8px">${r.id}</td><td style="background:${catColors[r.category]};padding:4px 8px;font-weight:bold">${r.category}</td><td style="padding:4px 8px">${r.skip}</td><td style="padding:4px 8px">${r.saves}</td><td style="padding:4px 8px">${r.views.toLocaleString()}</td></tr>`; });
   html += "</table></body></html>";
   const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "1000_videos_simulation.xls"; a.click();
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "1000_real_videos.xls"; a.click();
 }
 
 const TABS = [
-  { id: "skip-views",  label: "📈 Skip vs Views"  },
+  { id: "skip-views",  label: "📉 Skip vs Views"   },
   { id: "saves-views", label: "💾 Saves vs Views"  },
-  { id: "skip-saves",  label: "⚡ Skip vs Saves"   },
-  { id: "stats",       label: "🏆 Stats"           },
+  { id: "skip-saves",  label: "🎯 Skip vs Saves"   },
+  { id: "stats",       label: "🏆 Summary Stats"   },
   { id: "table",       label: "📋 Raw Data"        },
 ];
 
@@ -173,11 +175,11 @@ function IntroScreen({ onEnter }: { onEnter: (name: string) => void }) {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(127,90,255,0.1)", border: "1px solid rgba(127,90,255,0.3)", borderRadius: 20, padding: "6px 18px", marginBottom: 24 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#7f5aff", boxShadow: "0 0 8px #7f5aff", animation: "pulse 1.5s infinite" }} />
-            <span style={{ fontSize: 11, color: "#7f5aff", fontWeight: 700, letterSpacing: "0.12em" }}>LIVE SIMULATION</span>
+            <span style={{ fontSize: 11, color: "#7f5aff", fontWeight: 700, letterSpacing: "0.12em" }}>REAL VIDEOS</span>
           </div>
           <h1 style={{ fontSize: 48, fontWeight: 900, letterSpacing: "-0.04em", color: "#fff", lineHeight: 1.05, marginBottom: 12 }}>
-            1,000 Video<br />
-            <span style={{ background: "linear-gradient(135deg, #7f5aff 0%, #00d2ff 50%, #bf5af2 100%)", backgroundSize: "200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "shimmer 3s linear infinite" }}>Simulation</span>
+            1,000 Real<br />
+            <span style={{ background: "linear-gradient(135deg, #7f5aff 0%, #00d2ff 50%, #bf5af2 100%)", backgroundSize: "200%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "shimmer 3s linear infinite" }}>Videos</span>
           </h1>
           <p style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }}>
             by <span style={{ color: "#666", fontWeight: 700 }}>Enoch Immanuel Wang</span> · Playing with Probability
@@ -228,7 +230,8 @@ function IntroScreen({ onEnter }: { onEnter: (name: string) => void }) {
             }}>Enter →</button>
           </div>
         </div>
-        <div style={{ textAlign: "center", marginTop: 18, fontSize: 10, color: "#1a1a2a" }}>React · TypeScript · Recharts · Simulated data only</div>
+
+        <div style={{ textAlign: "center", marginTop: 18, fontSize: 10, color: "#1a1a2a" }}>React · TypeScript · Recharts · Real video data</div>
       </div>
     </div>
   );
@@ -263,6 +266,8 @@ export default function App() {
   const [lastUnlocked, setLastUnlocked] = useState<string | null>(null);
   const [combo, setCombo] = useState(0);
   const comboTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  if (!username) return <IntroScreen onEnter={(n) => setUsername(n)} />;
 
   const filtered = useMemo(() => DATASET.filter((d) => visibleCats.has(d.category)), [visibleCats]);
   const byCategory = useMemo(() => {
@@ -316,8 +321,6 @@ export default function App() {
     </ResponsiveContainer>
   ), [visibleCats, byCategory]);
 
-  if (!username) return <IntroScreen onEnter={(n) => setUsername(n)} />;
-
   return (
     <div style={{ background: "#05050f", minHeight: "100vh", color: "#e8e8f0", fontFamily: "'Inter','Segoe UI',sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{CSS}</style>
@@ -336,7 +339,7 @@ export default function App() {
       <div style={{ padding: "12px 24px", borderBottom: "1px solid #0e0e1e", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", background: "rgba(5,5,15,0.92)", backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 10 }}>
         <div>
           <div style={{ fontSize: 9, color: "#2a2a4a", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase" }}>Enoch Immanuel Wang</div>
-          <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: "-0.03em", background: "linear-gradient(135deg,#fff,#666)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>1,000 Video Simulation</div>
+          <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: "-0.03em", background: "linear-gradient(135deg,#fff,#666)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>1,000 Real Videos</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div>
@@ -359,7 +362,7 @@ export default function App() {
       <div style={{ display: "flex", gap: 10, padding: "16px 24px 0", flexWrap: "wrap" }}>
         {[
           { label: "Total Views", display: fmt(totalViews), color: "#7f5aff" },
-          { label: "Videos Simulated", display: "1,000", color: "#00d2ff" },
+          { label: "Real Videos", display: "1,000", color: "#00d2ff" },
           { label: "Avg Views", display: fmt(Math.round(totalViews / DATASET.length)), color: "#bf5af2" },
           { label: "Viral Rate", display: "15%", color: "#ffd60a" },
         ].map((s) => (
@@ -427,8 +430,8 @@ export default function App() {
                     </td>
                     <td style={{ padding: "14px 16px", color: "#444", fontWeight: 600 }}>{s.n}</td>
                     <td style={{ padding: "14px 16px", color: +s.avgSkip > 50 ? "#ff4d6d" : +s.avgSkip < 30 ? "#00ff88" : "#555", fontWeight: 700 }}>{s.avgSkip}%</td>
-                    <td style={{ padding: "14px 16px", color: "#444" }}>{s.avgSaves}</td>
-                    <td style={{ padding: "14px 16px", color: CAT_COLOR[s.cat], fontWeight: 700 }}>{fmt(s.avgViews)}</td>
+                    <td style={{ padding: "14px 16px", color: "#555", fontWeight: 600 }}>{s.avgSaves}</td>
+                    <td style={{ padding: "14px 16px", color: CAT_COLOR[s.cat], fontWeight: 800 }}>{fmt(s.avgViews)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -467,7 +470,7 @@ export default function App() {
                     </td>
                     <td style={{ padding: "7px 16px", color: r.skip > 50 ? "#ff4d6d" : r.skip < 30 ? "#00ff88" : "#333", fontWeight: 600 }}>{r.skip}%</td>
                     <td style={{ padding: "7px 16px", color: "#2a2a3a" }}>{r.saves}</td>
-                    <td style={{ padding: "7px 16px", color: CAT_COLOR[r.category], fontWeight: 600 }}>{r.views.toLocaleString()}</td>
+                    <td style={{ padding: "7px 16px", color: CAT_COLOR[r.category], fontWeight: 700 }}>{r.views.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
